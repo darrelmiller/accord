@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Accord · Local document workspace</title>
+  <script>
+  (() => {
+    const param = new URLSearchParams(window.location.search).get("scoutTheme");
+    const theme =
+      param || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    document.documentElement.setAttribute("data-theme", theme);
+  })();
+  </script>
+  <link rel="stylesheet" href="/styles.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Accord home">Accord<span>local authoring</span></a>
+    <span class="local-badge">LOCAL ONLY · WORKING DRAFT</span>
+    <button id="theme" class="quiet">Switch theme</button>
+  </header>
+  <main class="workspace">
+    <aside class="sidebar" aria-label="Document workspace">
+      <section>
+        <h2>Workspace</h2>
+        <form id="open-form">
+          <label for="root">Existing Git repository root</label>
+          <input id="root" autocomplete="off" spellcheck="false" placeholder="C:\projects\my-repository" required>
+          <button id="open" type="submit">Open workspace</button>
+        </form>
+        <p id="workspace-label" class="small muted">Your files stay on this computer. Opening never changes Git state.</p>
+      </section>
+      <section>
+        <h2>Documents <span id="document-count"></span></h2>
+        <label class="sr-only" for="filter">Filter documents by path</label>
+        <input id="filter" type="search" placeholder="Filter by path…" disabled>
+        <nav id="documents" aria-label="Workspace documents"><p class="muted small">Open a repository to discover HTML alongside your code.</p></nav>
+      </section>
+      <section id="contents-section" hidden>
+        <h2>Contents</h2>
+        <nav id="toc" aria-label="Table of contents"></nav>
+        <button id="copy-link" class="quiet">Copy current section link</button>
+      </section>
+      <section id="info-section" hidden>
+        <h2>Document info</h2>
+        <dl id="info"></dl>
+      </section>
+      <section class="reading">
+        <h2>Reading preferences</h2>
+        <label for="font-size">Text size</label>
+        <input id="font-size" type="range" min="16" max="24" value="18">
+        <p class="small muted">Original layout CSS and active content are not executed. Relative raster images stay local.</p>
+      </section>
+    </aside>
+    <section class="reading-pane" aria-label="Document">
+      <div class="toolbar">
+        <div class="mode-group" role="group" aria-label="Document mode">
+          <button id="read" aria-pressed="true" disabled>Read</button>
+          <button id="edit" aria-pressed="false" disabled>Edit text</button>
+        </div>
+        <span id="save-state" role="status">No document open</span>
+        <button id="reload" class="quiet" disabled>Reload disk</button>
+        <button id="save" disabled>Save locally</button>
+      </div>
+      <div id="message" role="status" aria-live="polite" hidden></div>
+      <div id="warnings" role="note" hidden></div>
+      <div id="welcome">
+        <span class="eyebrow">A DOCUMENT WORKSPACE, NOT A NEW FORMAT</span>
+        <h1>Good documents.<br>Ordinary HTML.</h1>
+        <p>Read, navigate, and refine documents in the repository you already use.</p>
+        <div class="welcome-card"><h2>Start with a local checkout</h2><p>Enter its absolute path in the sidebar. Accord finds HTML without running repository scripts, touching source code, or changing your branch.</p><p class="muted small">First slice · plain-text visual editing inside existing structure. Review submission and publication are not available.</p></div>
+      </div>
+      <iframe id="document-frame" title="Isolated document preview" sandbox="allow-same-origin" referrerpolicy="no-referrer" hidden></iframe>
+      <footer id="editing-help" hidden>Click text to edit. Structure, formatting, links, and images stay fixed. Paste is plain text. Use Ctrl/Cmd+Z to undo before saving.</footer>
+    </section>
+  </main>
+  <dialog id="unsaved">
+    <h2>Keep your unsaved changes?</h2>
+    <p>This document has edits that are only in this tab.</p>
+    <div class="dialog-actions">
+      <button id="stay" class="quiet">Keep editing</button>
+      <button id="discard" class="quiet">Discard and continue</button>
+      <button id="save-continue">Save and continue</button>
+    </div>
+  </dialog>
+</body>
+</html>

@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Field notes: a local-first handbook</title>
+  <script>
+  (() => {
+    const param = new URLSearchParams(window.location.search).get("scoutTheme");
+    const theme =
+      param || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    document.documentElement.setAttribute("data-theme", theme);
+  })();
+  </script>
+  <link rel="stylesheet" href="../ui/styles.css">
+  <script id="review-records" type="application/json">{"version":1,"reviews":[{"id":"review-demo-1","author":"Example reviewer (unverified)","baseline":"illustrative-only","target":"principles","state":"draft","comment":"Keep this metadata byte-for-byte; it is not a submitted review."}]}</script>
+</head>
+<body class="document">
+  <article data-document-id="handbook-01">
+    <header>
+      <p id="category">ACCORD FIELD NOTES · WORKING DRAFT</p>
+      <h1 id="handbook">A local-first handbook</h1>
+      <p id="intro">A small document for trying <strong>visual text editing</strong>, linked navigation, and ordinary HTML persistence.</p>
+    </header>
+    <section>
+      <h2 id="principles">1. Keep the document yours</h2>
+      <p id="open-format">The file on disk is the document. Accord does not save the sidebar, toolbar, or derived contents list into it.</p>
+      <h3 id="portable">1.1 Portable by default</h3>
+      <p id="relative-links">Follow the <a href="notes/decisions.html#save-contract">save contract</a> for the companion's persistence boundaries. Relative links stay relative after editing.</p>
+      <figure>
+        <img src="assets/workflow.png" alt="Open a checkout, edit existing text, then save HTML locally" width="720" height="200">
+        <figcaption id="flow-caption">A local workflow. Nothing is uploaded, staged, or committed by Save.</figcaption>
+      </figure>
+    </section>
+    <section>
+      <h2 id="try-it">2. Try a real edit</h2>
+      <p id="instructions">Choose Edit text, rename this heading, and change a table cell. The contents list follows the heading while its identifier stays stable.</p>
+      <table>
+        <caption id="scope-caption">What this slice can do</caption>
+        <thead><tr><th id="capability" scope="col">Capability</th><th id="state" scope="col">State</th></tr></thead>
+        <tbody>
+          <tr><td id="text-editing">Text in existing blocks</td><td id="available">Available locally</td></tr>
+          <tr><td id="review-submission">Remote review submission</td><td id="deferred">Deferred</td></tr>
+        </tbody>
+      </table>
+      <ul>
+        <li id="preserve">Preserve inline <em>emphasis</em>, document IDs, and embedded JSON records.</li>
+        <li id="plain-paste">Paste plain text without introducing foreign markup.</li>
+        <li id="conflicts">If another editor changes the file, Save refuses the stale version.</li>
+      </ul>
+      <blockquote id="boundary">A successful local save is not review submission or publication.</blockquote>
+    </section>
+  </article>
+</body>
+</html>

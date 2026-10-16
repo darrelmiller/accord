@@ -1,0 +1,22 @@
+{
+  "name": "accord-local",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "build": "tsc -p tsconfig.json && tsc -p tsconfig.browser.json && node scripts/copy-ui.mjs",
+    "start": "node dist/server/main.js",
+    "demo": "node scripts/demo.mjs",
+    "test": "npm run build && node --test dist/tests/*.test.js",
+    "test:browser": "npm run build && playwright test"
+  },
+  "dependencies": {
+    "parse5": "^8.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@playwright/test": "^1.56.0",
+    "typescript": "^5.9.3"
+  }
+}

@@ -1,0 +1,733 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Accord product requirements</title>
+<script>
+  (() => {
+    const param = new URLSearchParams(window.location.search).get("scoutTheme");
+    const theme =
+      param || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    document.documentElement.setAttribute("data-theme", theme);
+  })();
+  </script>
+<link rel="stylesheet" href="../ui/styles.css">
+</head>
+<body class="document">
+<article data-document-id="accord-prd">
+<h1 id="product-requirements-accord">Product requirements: Accord</h1>
+<p><strong>Status:</strong> Discussion draft, not an approved specification<br />
+<strong>Date:</strong> 2026-10-16<br />
+<strong>Working name:</strong> Accord<br />
+<strong>Scope:</strong> Local-first HTML authoring, asynchronous review, versioning, and web publication</p>
+<h2 id="purpose">1. Purpose</h2>
+<p>Enable people and agents to create browser-native documents that a designated editor can edit visually, share for asynchronous review, revise through suggested changes, and publish for reading on the web.</p>
+<p>Use an ordinary Git repository as the workspace's storage, distribution, access-control boundary, and shared version history. Present document-oriented actions rather than source-control operations.</p>
+<p>Documents must coexist with source code and other product assets in existing repositories. A repository need not be dedicated to documents, and adopting the application must not require reorganizing the product repository.</p>
+<p>The document content must remain usable without the original authoring application.</p>
+<h2 id="problem-and-opportunity">2. Problem and opportunity</h2>
+<p>HTML provides an open, expressive presentation format with ubiquitous browser support, but the workflow for editing, sharing, commenting on, and reviewing HTML documents is fragmented. Word and SharePoint combine these activities into a familiar experience; HTML needs a similarly coherent document experience without requiring a proprietary content format.</p>
+<p>The initial opportunity is document-centric work: specifications, proposals, research notes, policies, handbooks, and technical reports. Browser presentation takes priority over printed-page layout.</p>
+<h3 id="hypotheses-to-validate">Hypotheses to validate</h3>
+<p>These motivate the product; they are not established facts or acceptance criteria:</p>
+<ul>
+<li>Agents can produce better documents in HTML than in Markdown for important target tasks. &quot;Better&quot; needs evaluation for presentation, semantics, accessibility, and editability.</li>
+<li>People will accept a local workspace and installation step for richer editing and review.</li>
+<li>A designated editor plus asynchronous suggestions meets the target workflow without real-time co-editing.</li>
+<li>Git-backed distribution and history can replace enough document-management infrastructure to be attractive.</li>
+<li>Browser-native documents can reduce dependence on Word and SharePoint for the target use cases. Replacing SharePoint's entire enterprise platform is not an initial goal.</li>
+</ul>
+<h2 id="users-and-roles">3. Users and roles</h2>
+<table>
+<thead>
+<tr>
+<th>Role</th>
+<th>Responsibilities and needs</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Editor</td>
+<td>Owns authoritative document content; edits visually; requests review; accepts or rejects suggestions; publishes versions.</td>
+</tr>
+<tr>
+<td>Reviewer</td>
+<td>Reads a particular revision; comments, replies, and proposes replacements; explicitly submits a review. Does not directly edit authoritative content.</td>
+</tr>
+<tr>
+<td>Reader</td>
+<td>Opens published content through a normal browser link, without a clone or extension.</td>
+</tr>
+<tr>
+<td>Agent</td>
+<td>Creates or revises HTML and associated assets in an authorized workspace; makes its output available for human editing and review.</td>
+</tr>
+</tbody>
+</table>
+<p>Each document has a designated editor. The selected direction is a repository-owned, path-based editor policy inspired by CODEOWNERS. The exact filename, syntax, precedence, default owner, delegation, ownership transfer, and enforcement model remain open decisions (OI-06). This is a product direction, not a claim that repository write access establishes editorial authority.</p>
+<p>Application roles and repository permissions are distinct. Repository write access alone is not an editorial approval mechanism. The product must define its enforcement model before claiming protection against users bypassing the application.</p>
+<h2 id="product-principles">4. Product principles</h2>
+<ol>
+<li><strong>Open content:</strong> HTML and normal web assets are the durable content, not a proprietary application database.</li>
+<li><strong>Local-first participation:</strong> Editors and reviewers work from a local repository checkout; reading and drafting reviews work offline after required content is available.</li>
+<li><strong>Editorial ownership:</strong> Reviewers propose; the editor decides. No real-time co-editing requirement.</li>
+<li><strong>Document vocabulary:</strong> Open workspace, Save, Share, Request review, Submit review, Get reviews, Accept suggestion, Publish, and Version history.</li>
+<li><strong>Browser-first presentation:</strong> Optimize for screens, responsive reading, navigation, and links rather than pagination.</li>
+<li><strong>Explicit boundaries:</strong> Saving locally, submitting a review, synchronizing remotely, and publishing are separate, visible states.</li>
+<li><strong>Progressive enhancement:</strong> The application enriches documents; it must not be required to read their basic content.</li>
+</ol>
+<h2 id="end-to-end-experience">5. End-to-end experience</h2>
+<ol>
+<li>An agent or person creates an HTML document and its assets in a repository workspace.</li>
+<li>The editor opens it in the document application and edits the content largely WYSIWYG.</li>
+<li>The editor saves locally and explicitly shares or requests review of an identifiable revision.</li>
+<li>A reviewer follows the workspace/document link. The application opens an existing clone or guides authorized acquisition of a local clone.</li>
+<li>The reviewer navigates linked workspace documents and adds comments or suggested changes, including offline.</li>
+<li>Submit review publishes the review through an authorized path. Unsubmitted work remains visibly local.</li>
+<li>The editor retrieves reviews without replacing the working document, then accepts, rejects, or discusses suggestions.</li>
+<li>The editor compares meaningful versions and publishes an approved snapshot.</li>
+<li>Readers follow a hosted, read-only link. Review this document can open the corresponding workspace, path, and revision in the installed application.</li>
+</ol>
+<h2 id="functional-requirements">6. Functional requirements</h2>
+<p>Priority labels describe a proposed sequence, not committed delivery dates.</p>
+<h3 id="workspace-and-document-access">6.1 Workspace and document access</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Priority</th>
+<th>Requirement</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>WS-01</td>
+<td>Core</td>
+<td>Editors and reviewers access content through a local clone of the containing Git repository. The interface must not require manual Git commands.</td>
+</tr>
+<tr>
+<td>WS-02</td>
+<td>Core</td>
+<td>Support multiple HTML documents and ordinary assets in a workspace. Resolve relative links and assets within that workspace.</td>
+</tr>
+<tr>
+<td>WS-03</td>
+<td>Core</td>
+<td>Open an existing workspace or acquire one using the user's authorized repository access. Surface authentication and access failures explicitly.</td>
+</tr>
+<tr>
+<td>WS-04</td>
+<td>Core</td>
+<td>Shareable participation links identify a repository and document path, plus a specific revision when needed. Opening a link must not silently discard local work or change its review baseline.</td>
+</tr>
+<tr>
+<td>WS-05</td>
+<td>Core</td>
+<td>Show the revision being viewed and whether the document is a working draft, review snapshot, or published version.</td>
+</tr>
+<tr>
+<td>WS-06</td>
+<td>Core</td>
+<td>Keep related documents in a consistent workspace revision context. Identify external or unavailable dependencies rather than implying they are present offline.</td>
+</tr>
+<tr>
+<td>WS-07</td>
+<td>Core</td>
+<td>Allow offline reading, editing, and review drafting for available local content. Clearly identify operations that require connectivity.</td>
+</tr>
+<tr>
+<td>WS-08</td>
+<td>Core</td>
+<td>Support documents in mixed-content repositories, including product source-code repositories, without requiring a dedicated repository or fixed document directory.</td>
+</tr>
+<tr>
+<td>WS-09</td>
+<td>Core</td>
+<td>Scope application writes and document operations to intended document content, assets, and explicitly managed metadata. Preserve unrelated files, local modifications, and repository configuration; do not take over the user's existing development workflow.</td>
+</tr>
+<tr>
+<td>WS-10</td>
+<td>Core</td>
+<td>Identify document-specific history and milestones within repository history. Unrelated code changes must not appear as document edits or trigger document publication by themselves.</td>
+</tr>
+</tbody>
+</table>
+<p>The repository is the distribution and initial authorization boundary. Per-document access control within one repository is not required initially.</p>
+<h3 id="agent-handoff-and-visual-authoring">6.2 Agent handoff and visual authoring</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Priority</th>
+<th>Requirement</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AU-01</td>
+<td>Core</td>
+<td>Open agent-produced HTML and assets for human editing without a required Markdown or Word conversion step.</td>
+</tr>
+<tr>
+<td>AU-02</td>
+<td>Core</td>
+<td>Provide largely WYSIWYG editing of an explicitly supported document profile, including headings, paragraphs, inline emphasis, links, lists, tables, and images. Exact editing operations need specification during design.</td>
+</tr>
+<tr>
+<td>AU-03</td>
+<td>Core</td>
+<td>Preserve supported structure, presentation, links, and metadata through open-edit-save cycles. Do not silently remove unsupported content; warn or offer a read-only path.</td>
+</tr>
+<tr>
+<td>AU-04</td>
+<td>Core</td>
+<td>Persist actual HTML and assets in the workspace, not solely an opaque editor representation.</td>
+</tr>
+<tr>
+<td>AU-05</td>
+<td>Core</td>
+<td>Support undo/redo and recovery of saved local work; make unsaved or unsynchronized state visible. Exact recovery guarantees require definition.</td>
+</tr>
+<tr>
+<td>AU-06</td>
+<td>Core</td>
+<td>Keep application controls and derived navigation out of authored document content.</td>
+</tr>
+<tr>
+<td>AU-07</td>
+<td>Core</td>
+<td>Assign persistent identifiers to addressable sections and content blocks. Preserve identity through ordinary text edits, renames, and moves.</td>
+</tr>
+</tbody>
+</table>
+<p>Arbitrary web applications are not assumed to be editable documents. The supported HTML/CSS profile and treatment of active content are open design decisions.</p>
+<h3 id="structure-navigation-and-references">6.3 Structure, navigation, and references</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Priority</th>
+<th>Requirement</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>NV-01</td>
+<td>Core</td>
+<td>Render a dynamic hierarchical TOC in application chrome from document headings/structure. Update it as the document changes without a required authoring build step.</td>
+</tr>
+<tr>
+<td>NV-02</td>
+<td>Core</td>
+<td>Provide section navigation, current-section indication, and copyable links based on persistent identifiers.</td>
+</tr>
+<tr>
+<td>NV-03</td>
+<td>Core</td>
+<td>Support an application sidebar separating document information, contents, review, and reading preferences. Final layout is a UX decision.</td>
+</tr>
+<tr>
+<td>NV-04</td>
+<td>Follow-on</td>
+<td>Allow authors to reference sections and defined terms without manually maintaining generated labels or section numbers.</td>
+</tr>
+<tr>
+<td>NV-05</td>
+<td>Follow-on</td>
+<td>Support citations to related specifications and generated reference lists, including the distinction between a pinned version and a latest-version reference.</td>
+</tr>
+<tr>
+<td>NV-06</td>
+<td>Follow-on</td>
+<td>Preserve citation targets and author intent separately from generated presentation. Report unresolved references.</td>
+</tr>
+</tbody>
+</table>
+<p>ReSpec is conceptual prior art for references, definitions, and generated structure, not a required dependency. A generated TOC need not be stored in the HTML.</p>
+<h3 id="comments-and-suggested-changes">6.4 Comments and suggested changes</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Priority</th>
+<th>Requirement</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>RV-01</td>
+<td>Core</td>
+<td>Review an identifiable document revision without modifying its authoritative body.</td>
+</tr>
+<tr>
+<td>RV-02</td>
+<td>Core</td>
+<td>Attach comments to a passage, block, or document; support replies and resolved/open state.</td>
+</tr>
+<tr>
+<td>RV-03</td>
+<td>Core</td>
+<td>Propose a text replacement attached to a comment, with a readable before/after preview.</td>
+</tr>
+<tr>
+<td>RV-04</td>
+<td>Core</td>
+<td>Record the review baseline, author attribution, target, original text/context, proposed replacement, and lifecycle state needed to interpret a suggestion. Attribution assurance must be distinguished from an unverified author field.</td>
+</tr>
+<tr>
+<td>RV-05</td>
+<td>Core</td>
+<td>Submit a review explicitly and distinguish local drafts, submitted reviews, and synchronization failures.</td>
+</tr>
+<tr>
+<td>RV-06</td>
+<td>Core</td>
+<td>Retrieve submitted reviews without overwriting the editor's working content or forcing the reviewer to update an in-progress review.</td>
+</tr>
+<tr>
+<td>RV-07</td>
+<td>Core</td>
+<td>Let the editor accept, reject, or discuss a suggestion. Acceptance applies the replacement and records its accepted state as one logical operation.</td>
+</tr>
+<tr>
+<td>RV-08</td>
+<td>Core</td>
+<td>Before applying a suggestion, verify that its target remains applicable. Surface stale, ambiguous, or missing anchors; never blindly apply old offsets.</td>
+</tr>
+<tr>
+<td>RV-09</td>
+<td>Core</td>
+<td>Preserve overlapping suggestions as independent proposals. Accepting one may make another stale; it must not silently accept or discard the other.</td>
+</tr>
+<tr>
+<td>RV-10</td>
+<td>Core</td>
+<td>Support multiple independently submitted reviews without lost or duplicated records, and without requiring concurrent body editing.</td>
+</tr>
+<tr>
+<td>RV-11</td>
+<td>Core</td>
+<td>Permit review records to be persisted inside the HTML, outside the body passages they annotate. A separate sidecar file must not be mandatory. The interoperable encoding is unresolved.</td>
+</tr>
+<tr>
+<td>RV-12</td>
+<td>Core</td>
+<td>Provide an explicit, authorized submission path. Do not assume repository read permission allows review publication.</td>
+</tr>
+</tbody>
+</table>
+<p>Embedded review metadata is a preferred capability, not a settled transport design. The relationship between submitted review records and the editor's embedded records must be specified. Custom elements, Web Annotation selectors, review branches, forks, and services are candidates rather than requirements.</p>
+<h3 id="history-and-comparison">6.5 History and comparison</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Priority</th>
+<th>Requirement</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>HI-01</td>
+<td>Core</td>
+<td>Retain recoverable document versions using repository history and expose them without source-control terminology.</td>
+</tr>
+<tr>
+<td>HI-02</td>
+<td>Core</td>
+<td>Distinguish meaningful named review/publication milestones from fine-grained editing history.</td>
+</tr>
+<tr>
+<td>HI-03</td>
+<td>Core</td>
+<td>Select two versions and view a human-readable comparison, with inline and side-by-side modes.</td>
+</tr>
+<tr>
+<td>HI-04</td>
+<td>Core</td>
+<td>Identify added, removed, and changed text. Match sections/blocks by persistent identity so moves can be distinguished from deletion and recreation.</td>
+</tr>
+<tr>
+<td>HI-05</td>
+<td>Core</td>
+<td>Keep generated TOC/numbering/application changes from overwhelming authored-content differences. Do not hide substantive changes merely because they are generated.</td>
+</tr>
+<tr>
+<td>HI-06</td>
+<td>Follow-on</td>
+<td>Provide a changes-since-last-review view that preserves the reviewer's earlier baseline.</td>
+</tr>
+<tr>
+<td>HI-07</td>
+<td>Follow-on</td>
+<td>Provide source-level differences for audit and diagnosis in addition to rendered document differences.</td>
+</tr>
+</tbody>
+</table>
+<p>Detailed comparison behavior for formatting, tables, images, and other assets needs specification before implementation.</p>
+<h3 id="publication-and-reading">6.6 Publication and reading</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Priority</th>
+<th>Requirement</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PB-01</td>
+<td>Core</td>
+<td>Publish an explicitly selected revision as a read-only browser experience requiring neither a clone nor an extension.</td>
+</tr>
+<tr>
+<td>PB-02</td>
+<td>Core</td>
+<td>Provide immutable version-specific URLs and a convenient latest-published URL. Ordinary editing must not silently update a published version.</td>
+</tr>
+<tr>
+<td>PB-03</td>
+<td>Core</td>
+<td>Resolve published relative links and assets within the selected workspace snapshot.</td>
+</tr>
+<tr>
+<td>PB-04</td>
+<td>Core</td>
+<td>Offer navigation, version information, and comparison access in a Datatracker-inspired reading shell where available. Basic content must remain readable without that shell.</td>
+</tr>
+<tr>
+<td>PB-05</td>
+<td>Core</td>
+<td>Distinguish the published version from a newer working draft. A review action must retain the published revision as context.</td>
+</tr>
+<tr>
+<td>PB-06</td>
+<td>Core</td>
+<td>Exclude review records from the public reading artifact by default, with an explicit decision required to publish them. Hiding comments visually is not redaction.</td>
+</tr>
+<tr>
+<td>PB-07</td>
+<td>Conditional</td>
+<td>For private publishing, enforce authorization at the publication surface. Do not assume repository permissions automatically secure deployed files.</td>
+</tr>
+<tr>
+<td>PB-08</td>
+<td>Follow-on</td>
+<td>Preserve a reproducible publication snapshot by retaining the output or pinning relevant rendering tools and external reference data.</td>
+</tr>
+<tr>
+<td>PB-09</td>
+<td>Core</td>
+<td>Publish only explicitly selected document content and dependencies, not the entire repository. Do not expose source code, private review data, or unrelated files merely because they share a repository with a published document.</td>
+</tr>
+</tbody>
+</table>
+<p>Public versus private hosting for the initial release remains open.</p>
+<h3 id="provenance">6.7 Provenance</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Priority</th>
+<th>Requirement</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PV-01</td>
+<td>Follow-on</td>
+<td>Associate a publication with its source repository revision and declared contributors/agent involvement. Clearly distinguish declarations from verified provenance.</td>
+</tr>
+<tr>
+<td>PV-02</td>
+<td>Exploration</td>
+<td>Evaluate verifiable provenance that remains usable when an artifact leaves its repository, using an open standard where suitable.</td>
+</tr>
+<tr>
+<td>PV-03</td>
+<td>Exploration</td>
+<td>If provenance verification is provided, show its scope, validation status, and effects of subsequent modification without implying that valid provenance proves factual correctness.</td>
+</tr>
+</tbody>
+</table>
+<p>C2PA is a candidate. HTML binding, packaging, verifier support, signing identity, trust policy, and offline behavior must be validated before committing to it. Paragraph-level attribution is not assumed.</p>
+<h2 id="quality-and-trust-requirements">7. Quality and trust requirements</h2>
+<ul>
+<li><strong>Safety:</strong> Define and enforce a trust boundary for agent-produced and cloned HTML. Document content must not inherit privileged repository, filesystem, or application access. Script and remote-resource policies require explicit design.</li>
+<li><strong>Reliability:</strong> Failed saves, submissions, fetches, and publication attempts must be visible and recoverable. A remote operation must not destroy unrelated local work.</li>
+<li><strong>Accessibility:</strong> Editing, navigation, reviewing, and comparison must support keyboard and assistive-technology use. Set a specific conformance target before release.</li>
+<li><strong>Portability:</strong> Content remains readable with ordinary browsers and repository tools; review metadata must have a documented, versioned representation.</li>
+<li><strong>Stable persistence:</strong> Unchanged supported content should not be needlessly rewritten on save. Deterministic serialization is desirable; exact formatting rules are a technical design choice.</li>
+<li><strong>Privacy:</strong> Make clear what is local, remotely submitted, and publicly published. Prevent hidden review data from entering sanitized publication artifacts.</li>
+<li><strong>Performance:</strong> Establish representative workspace sizes, document lengths, and review volumes before setting measurable latency and resource budgets.</li>
+<li><strong>Downloaded access:</strong> State that remote revocation does not revoke downloaded copies. Clone/history acquisition can expose reachable older content; administrators must understand that boundary.</li>
+</ul>
+<h2 id="non-goals-for-the-initial-product">8. Non-goals for the initial product</h2>
+<ul>
+<li>Real-time co-editing or simultaneous modification of authoritative body content.</li>
+<li>Requiring readers of published documents to clone repositories or install software.</li>
+<li>Full fidelity editing of arbitrary HTML applications.</li>
+<li>Print-first layout, pagination, page-number workflows, or Word feature parity.</li>
+<li>Replacing all SharePoint capabilities, such as enterprise search, records management, legal hold, eDiscovery, sensitivity labeling, or tenant administration.</li>
+<li>Requiring single-file packaging of documents and assets.</li>
+<li>Requiring document-only repositories or replacing existing source-code development workflows.</li>
+<li>Choosing jj, a particular editor framework, a browser vendor, a Git host, or a provenance technology in this PRD.</li>
+<li>Automated resolution of all document-body merge conflicts.</li>
+</ul>
+<h2 id="proposed-delivery-slices">9. Proposed delivery slices</h2>
+<p>These organize discovery and implementation; scope remains subject to validation.</p>
+<table>
+<thead>
+<tr>
+<th>Slice</th>
+<th>Outcome</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1. Local document experience</td>
+<td>Open an existing cloned workspace; visually edit the supported profile; save HTML; navigate linked content with a dynamic sidebar TOC.</td>
+</tr>
+<tr>
+<td>2. Editorial review</td>
+<td>Pin a review revision; draft and submit comments/suggestions; retrieve them; accept/reject safely; persist embedded review records.</td>
+</tr>
+<tr>
+<td>3. History and publication</td>
+<td>Named milestones, rendered comparisons, explicit publication, immutable/latest links, and a read-only reading shell.</td>
+</tr>
+<tr>
+<td>4. Specification intelligence</td>
+<td>Definitions, cross-spec references, bibliographies, reproducible rendering, and provenance experiments.</td>
+</tr>
+</tbody>
+</table>
+<p>Each slice needs its applicable safety and data-integrity requirements; these are not deferred to a final hardening phase.</p>
+<h2 id="acceptance-scenarios">10. Acceptance scenarios</h2>
+<ol>
+<li><strong>Agent handoff:</strong> An editor opens agent-produced supported HTML, changes a paragraph and table, saves, closes, and reopens. Supported content, assets, links, IDs, and review metadata are preserved; no application controls are saved as content.</li>
+<li><strong>Linked workspace:</strong> A reviewer opens a shared revision, follows a relative link to another document, and loads its local images. Both documents remain in that revision context.</li>
+<li><strong>Offline review:</strong> A reviewer drafts comments and a replacement offline. Submit review clearly requires connectivity; reconnection and retry deliver one copy without losing the draft.</li>
+<li><strong>Suggestion acceptance:</strong> The editor retrieves a suggestion, sees original/proposed text, and accepts it. The intended text and review state change together, with recoverable history.</li>
+<li><strong>Stale suggestion:</strong> The editor changes the target before accepting a review. The application identifies the mismatch and requires reconciliation rather than replacing an unrelated range.</li>
+<li><strong>Independent reviewers:</strong> Two reviewers submit comments against the same passage. Both arrive intact without changing authoritative content.</li>
+<li><strong>Dynamic navigation:</strong> Renaming and moving a section updates the TOC while preserving its identity and links. Comparison identifies the move rather than only a deletion/addition.</li>
+<li><strong>Version comparison:</strong> A reader selects two named versions and can inspect inline or side-by-side changes without generated navigation dominating the result.</li>
+<li><strong>Publication:</strong> Publishing a selected revision creates an ordinary browser-readable site with working relative assets/links. Later local edits do not alter that snapshot; review records are absent from its delivered source by default.</li>
+<li><strong>Permission failure:</strong> A read-authorized reviewer without a valid submission path sees an actionable error, not a false success or unexpected request to modify the main document.</li>
+<li><strong>Mixed-content repository:</strong> An editor opens a document alongside product source code and pre-existing local code modifications. Saving, submitting review records, and synchronizing documents preserve that unrelated work. Document history excludes code-only changes, and publication includes only approved document content and dependencies.</li>
+</ol>
+<h2 id="success-measures-and-validation">11. Success measures and validation</h2>
+<p>Targets are intentionally unset until a baseline study; the product must not invent thresholds from this discussion.</p>
+<table>
+<thead>
+<tr>
+<th>Question</th>
+<th>Evidence to collect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Can non-Git users complete the workflow?</td>
+<td>Unassisted completion and time for opening, editing, reviewing, accepting, and publishing; occasions requiring Git terminology.</td>
+</tr>
+<tr>
+<td>Is HTML effective for agent authoring?</td>
+<td>Controlled comparison with Markdown-based workflows on representative documents, including presentation, accessibility, correctness, and repair effort.</td>
+</tr>
+<tr>
+<td>Is persistence trustworthy?</td>
+<td>Round-trip fixture results, loss incidents, recovery outcomes, and unauthorized/unintended content changes.</td>
+</tr>
+<tr>
+<td>Is suggestion handling dependable?</td>
+<td>Correct application, stale/ambiguous detection, duplicate delivery, and lost review records.</td>
+</tr>
+<tr>
+<td>Are comparisons useful?</td>
+<td>Reviewer ability to identify substantive changes, moved content, and unintended edits.</td>
+</tr>
+<tr>
+<td>Is cloning acceptable?</td>
+<td>Acquisition time, disk use, installation friction, and abandonment at representative workspace sizes.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="open-product-decisions">12. Open product decisions</h2>
+<ul>
+<li>Which initial users and document types define the supported HTML/CSS profile?</li>
+<li>The first slice uses a local companion and browser UI, not an extension. Installation and platform decisions remain open.</li>
+<li>Which repository hosts and operating systems are initially supported?</li>
+<li>What is the authorized review path for readers without repository write permission?</li>
+<li>How do multiple review submissions become embedded records without lost updates?</li>
+<li>Is editorial ownership advisory within a trusted repository, or enforced against direct writes? How are ownership transfers handled?</li>
+<li>Which named milestones and publication states are required?</li>
+<li>Are reviews private by default, and which roles may see them?</li>
+<li>How are document links mapped between local, pinned-revision, and latest-published contexts?</li>
+<li>How are documents and publishable dependencies discovered in mixed-content repositories, and how are document operations isolated from existing development changes and branch workflows?</li>
+<li>Are public publishing, private publishing, or both in the initial scope?</li>
+<li>Which edits and non-text changes can suggestions represent initially?</li>
+<li>What accessibility, performance, recovery, and browser compatibility targets apply?</li>
+</ul>
+<h2 id="risks-and-constraints">13. Risks and constraints</h2>
+<ul>
+<li>Installing a local component and cloning a repository may exclude casual reviewers.</li>
+<li>Repository-level permissions are coarser than document-level sharing; repository organization becomes a product and governance concern.</li>
+<li>Large assets and reachable history increase acquisition cost. Multi-file packaging is simplified, not free.</li>
+<li>In mixed-content repositories, cloning a document workspace can also download product source and history. Repository access remains the boundary; document-only permissions are not implied.</li>
+<li>Document operations can interfere with code development if they move the current checkout or include unrelated modifications. Isolation and coexistence require explicit design.</li>
+<li>Custom review markup may be lost by unrelated HTML editors or sanitizers; interoperability needs explicit testing.</li>
+<li>Rich layout and arbitrary agent-generated markup may exceed what the visual editor can safely round-trip.</li>
+<li>External reference databases can undermine offline operation and reproducibility.</li>
+<li>Published content and source content must have explicit relationships; &quot;both HTML&quot; does not imply identical bytes.</li>
+<li>Open formats enable portability but do not themselves provide identity assurance, governance, or enterprise compliance.</li>
+</ul>
+<h2 id="what-belongs-outside-this-prd">14. What belongs outside this PRD</h2>
+<p>A PRD defines <strong>the problem, users, desired behavior, scope, constraints, and evidence of success</strong>. It can legitimately require HTML and Git because those are deliberate interoperability and distribution boundaries here, not incidental internal libraries.</p>
+<table>
+<thead>
+<tr>
+<th>Topic discussed</th>
+<th>PRD treatment</th>
+<th>Better home for detail</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>jj</td>
+<td>Requirement is simple saving, recovery, history, and synchronization; jj is a candidate implementation.</td>
+<td>Technical design and an architecture decision record (ADR).</td>
+</tr>
+<tr>
+<td>Extension, native helper, local server</td>
+<td>Browser editing is required; exact component topology remains unresolved.</td>
+<td>Architecture, installation, and security design.</td>
+</tr>
+<tr>
+<td>Custom tags versus JSON/sidecars</td>
+<td>In-file review persistence is supported; exact representation is not selected.</td>
+<td>Versioned HTML/review profile specification.</td>
+</tr>
+<tr>
+<td>Block IDs, offsets, quoted context</td>
+<td>Stable identity and safe application are requirements. Exact anchor algorithms are not.</td>
+<td>Anchoring protocol and conformance tests.</td>
+</tr>
+<tr>
+<td>One block per line, attribute ordering</td>
+<td>Avoid needless rewriting; exact canonical serialization is an implementation choice.</td>
+<td>Serializer design and format specification.</td>
+</tr>
+<tr>
+<td>Branches, forks, services, merge drivers</td>
+<td>Authorized asynchronous review is required. Transport and reconciliation remain undecided.</td>
+<td>Review protocol, synchronization design, ADRs.</td>
+</tr>
+<tr>
+<td>ReSpec</td>
+<td>Referencing/navigation capabilities are requirements; the library is not.</td>
+<td>Evaluation/prototype and dependency decision.</td>
+</tr>
+<tr>
+<td>C2PA</td>
+<td>Portable verifiable provenance is exploratory; the standard is a candidate.</td>
+<td>Feasibility study, trust model, ADR.</td>
+</tr>
+<tr>
+<td>Datatracker sidebar</td>
+<td>A concrete UX reference, not a pixel-for-pixel mandate.</td>
+<td>Interaction designs and prototypes.</td>
+</tr>
+<tr>
+<td>GitHub Pages-like hosting</td>
+<td>Read-only publication is required; provider and deployment mechanism are not.</td>
+<td>Publication architecture.</td>
+</tr>
+<tr>
+<td>HTML better than Markdown</td>
+<td>Explicit hypothesis, not a requirement or established conclusion.</td>
+<td>User research and comparative evaluation.</td>
+</tr>
+<tr>
+<td>Threat to SharePoint</td>
+<td>Strategic motivation, not a testable product requirement.</td>
+<td>Product strategy and market analysis.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="references-and-discussion-provenance">15. References and discussion provenance</h2>
+<h3 id="initial-implementation-decision">Initial implementation decision</h3>
+<p>The selected first slice is a local companion serving a browser application: open an existing repository, navigate HTML documents with a dynamic TOC, edit supported content visually, and save safely. Remote review submission, publication, and provenance are subsequent work. Local files remain authoritative; using HTTP on loopback is a presentation/interaction adapter, not remote document hosting. Direct <code>file://</code> editing and a browser extension are not initial requirements. jj remains an implementation candidate, not a dependency requirement.</p>
+<h3 id="gaps-to-resolve-during-initial-design">Gaps to resolve during initial design</h3>
+<ul>
+<li><strong>External changes and recovery:</strong> Detect edits by agents, other editors, and repository operations; do not overwrite a changed file from a stale browser buffer. Define atomic save, recovery, and multiple-tab behavior.</li>
+<li><strong>Round-trip contract:</strong> Define supported HTML/CSS and unsupported-content behavior, including paste from other tools, whitespace-sensitive content, accessibility metadata, and preservation of unknown markup.</li>
+<li><strong>Local trust boundary:</strong> Separate document rendering from privileged application APIs; specify active-content and remote-resource policy, loopback authentication, path containment, and symlink handling. Never execute repository scripts merely to view documents.</li>
+<li><strong>Development coexistence:</strong> Do not move the user's branch, stage code, or mutate existing development work to operate on documents. Worktree and dependency access need explicit treatment.</li>
+<li><strong>Identity and review authority:</strong> Decide how editor ownership and reviewer identity are represented and verified; a Git author string is not authentication.</li>
+<li><strong>Document lifecycle:</strong> Define rename, move, delete, and ownership-transfer behavior so anchors, review links, and history do not silently break.</li>
+<li><strong>Publication privacy:</strong> Hidden embedded reviews are still in source and Git history; sanitized publication is distinct from granting repository access.</li>
+<li><strong>Project readiness:</strong> License, distribution/update mechanism, supported platforms, name availability, and a representative end-to-end pilot remain decisions.</li>
+</ul>
+<p>This draft captures the exploratory discussion of 2026-10-16. Core directions were expressed during that discussion; delivery slices, default publication privacy behavior, and acceptance scenarios are proposed refinements for approval.</p>
+<ul>
+<li>Datatracker experience reference: <a href="https://datatracker.ietf.org/doc/html/draft-ietf-httpapi-ratelimit-headers-11">https://datatracker.ietf.org/doc/html/draft-ietf-httpapi-ratelimit-headers-11</a></li>
+<li>ReSpec concepts: <a href="https://respec.org/docs/">https://respec.org/docs/</a></li>
+<li>W3C Web Annotation Data Model, candidate vocabulary for selectors: <a href="https://www.w3.org/TR/annotation-model/">https://www.w3.org/TR/annotation-model/</a></li>
+<li>C2PA, candidate provenance standard; HTML suitability not established here: <a href="https://c2pa.org/">https://c2pa.org/</a></li>
+<li>HTML formatting precedent: <a href="https://google.github.io/styleguide/htmlcssguide.html#General_Formatting">https://google.github.io/styleguide/htmlcssguide.html#General_Formatting</a></li>
+<li>Semantic line breaks, related but distinct from block-per-line serialization: <a href="https://sembr.org/">https://sembr.org/</a></li>
+</ul>
+<p>Earlier discussion included tentative technical claims about jj, browser APIs, merge behavior, and C2PA. This PRD does not treat them as verified platform guarantees. Technical feasibility must be checked in the corresponding design work.</p>
+<h2 id="open-decision-issues">16. Open decision issues</h2>
+<p>These are explicit document issues, not GitHub issues, and do not block the agreed first local slice. Each remains <strong>Open</strong> until a decision and its evidence are recorded. Prototype safeguards do not settle the broader product contract. Requirements describe outcomes; the implementation choices in section 14 remain choices.</p>
+<h3 id="oi-01-external-edits-atomic-save-recovery-and-multiple-tabs">OI-01: External edits, atomic save, recovery, and multiple tabs</h3>
+<p><strong>Status:</strong> Open</p>
+<p><strong>Decision needed:</strong> Define external-change detection, stale-buffer behavior, atomic replacement and crash durability, recovery retention and restoration, and coordination between tabs, companion instances, agents, and other editors. Establish what can be guaranteed against non-cooperating concurrent filesystem writers.</p>
+<p><strong>Consequences:</strong> Weak detection can overwrite authoritative work; overstated atomicity or recovery can create false confidence. Requiring exclusive access would constrain development coexistence and the agent handoff workflow.</p>
+<h3 id="oi-02-supported-htmlcss-round-trip-contract">OI-02: Supported HTML/CSS round-trip contract</h3>
+<p><strong>Status:</strong> Open</p>
+<p><strong>Decision needed:</strong> Specify the editable element, attribute, CSS, and encoding profile; treatment of unknown markup, active content, whitespace-sensitive text, paste, accessibility metadata, and stable identifiers; which cases require read-only mode versus lossless opaque preservation.</p>
+<p><strong>Consequences:</strong> Silent normalization can destroy structure, metadata, links, or accessibility. A narrow profile limits useful agent output; a broad profile increases editing complexity and needs conformance fixtures.</p>
+<h3 id="oi-03-local-trust-boundary">OI-03: Local trust boundary</h3>
+<p><strong>Status:</strong> Open</p>
+<p><strong>Decision needed:</strong> Define document isolation, active-content and remote-resource policy, loopback binding and authentication, cross-site request protection, permitted file exposure, path containment, symlink/junction/hard-link behavior, and the threat model for concurrent filesystem changes.</p>
+<p><strong>Consequences:</strong> Cloned or agent-produced HTML must not acquire filesystem or repository privileges. Excessive restrictions can break legitimate documents; permissive rendering can disclose local files or authorize unintended actions.</p>
+<h3 id="oi-04-coexistence-with-code-development">OI-04: Coexistence with code development</h3>
+<p><strong>Status:</strong> Open</p>
+<p><strong>Decision needed:</strong> Define staging, branch, checkout, worktree, dependency, and existing-local-change boundaries for document operations and later synchronization. Decide when isolation requires a separate worktree. jj remains optional.</p>
+<p><strong>Consequences:</strong> Document workflows must not stage unrelated code, move a developer's branch, run repository builds implicitly, or discard existing work. Isolation choices affect disk use and workflow complexity.</p>
+<h3 id="oi-05-authenticated-identity-and-review-submission">OI-05: Authenticated identity and review submission</h3>
+<p><strong>Status:</strong> Open</p>
+<p><strong>Decision needed:</strong> Define authenticated editor/reviewer identities and the authorized submission path, including reviewers with read access only, attribution assurance, retries, duplicates, and baseline retention.</p>
+<p><strong>Consequences:</strong> A Git author string or user-entered name is not authentication. Without a submission path, apparent successful reviews may never reach the editor or may bypass repository permissions.</p>
+<h3 id="oi-06-repository-owned-editor-policy">OI-06: Repository-owned editor policy</h3>
+<p><strong>Status:</strong> Open</p>
+<p><strong>Direction:</strong> Use a repository-owned, path-based policy inspired by CODEOWNERS to designate editors. A name such as codeowners.txt is illustrative, not a chosen filename or syntax.</p>
+<p><strong>Decision needed:</strong> Choose the policy filename, syntax, path matching and precedence, default owner behavior, delegation, ownership transfer, and identity mapping. Define protection against self-authorization: evaluate policy against an explicitly trusted baseline rather than trusting a proposed policy change merely because it is in the working tree. Distinguish advisory application policy, application-enforced operations, and repository-host enforcement.</p>
+<p><strong>Consequences:</strong> Ambiguous precedence can assign conflicting editors; no default can leave documents unowned. Trusting an unapproved policy edit permits self-authorization. Repository write permission alone cannot prove editorial approval, and local application checks cannot prevent direct Git or filesystem bypass.</p>
+<h3 id="oi-07-rename-move-delete-links-and-anchors">OI-07: Rename, move, delete, links, and anchors</h3>
+<p><strong>Status:</strong> Open</p>
+<p><strong>Decision needed:</strong> Define document and asset lifecycle operations, persistent identity across path changes, redirect or broken-link behavior, anchor stability, and treatment of reviews targeting moved or deleted content.</p>
+<p><strong>Consequences:</strong> Naive path changes can orphan reviews and break shared links or published references. Silent anchor reassignment can attach a suggestion to the wrong passage.</p>
+<h3 id="oi-08-embedded-review-confidentiality">OI-08: Embedded review confidentiality</h3>
+<p><strong>Status:</strong> Open</p>
+<p><strong>Decision needed:</strong> Specify interoperable embedded review metadata, privacy defaults, repository/history visibility, redaction, and the relationship between review-bearing sources and sanitized publication artifacts.</p>
+<p><strong>Consequences:</strong> Hidden metadata remains readable in HTML source and reachable repository history. Visual hiding is not redaction; downloaded copies cannot be revoked by later permission changes.</p>
+<h3 id="oi-09-publicprivate-publication-and-selected-dependencies">OI-09: Public/private publication and selected dependencies</h3>
+<p><strong>Status:</strong> Open</p>
+<p><strong>Decision needed:</strong> Choose initial public/private hosting scope, authorization enforcement, immutable/latest behavior, and explicit selection of document dependencies, including external or unavailable resources.</p>
+<p><strong>Consequences:</strong> Publishing an entire mixed-content repository can expose source code and private reviews. Repository permissions do not automatically protect hosted files; missing assets undermine reproducibility and offline reading.</p>
+<h3 id="oi-10-installation-updates-platforms-and-project-readiness">OI-10: Installation, updates, platforms, and project readiness</h3>
+<p><strong>Status:</strong> Open</p>
+<p><strong>Decision needed:</strong> Select supported operating systems and distribution/update mechanism, installation trust and signing, license, product-name availability, and pilot readiness criteria.</p>
+<p><strong>Consequences:</strong> The installation burden may exclude casual participants. Unclear licensing, naming, or update trust prevents responsible distribution even if a local prototype works.</p>
+<h3 id="oi-11-browser-accessibility-and-performance-targets">OI-11: Browser, accessibility, and performance targets</h3>
+<p><strong>Status:</strong> Open</p>
+<p><strong>Decision needed:</strong> Set exact browser/version coverage, keyboard and assistive-technology behavior, accessibility conformance target, representative repository/document/asset sizes, latency budgets, and measurement procedures.</p>
+<p><strong>Consequences:</strong> Unsupported browsers may silently alter editing behavior; inaccessible navigation prevents participation. Unmeasured performance claims can hide unusable large-workspace behavior. Prototype limits are guardrails, not product success targets.</p>
+
+</article>
+</body>
+</html>

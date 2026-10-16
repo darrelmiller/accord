@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Companion notes</title>
+  <script>
+  (() => {
+    const param = new URLSearchParams(window.location.search).get("scoutTheme");
+    const theme =
+      param || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    document.documentElement.setAttribute("data-theme", theme);
+  })();
+  </script>
+  <link rel="stylesheet" href="../../ui/styles.css">
+</head>
+<body class="document">
+  <h1 id="notes">Companion notes</h1>
+  <p id="back-link">Return to the <a href="../handbook.html#try-it">handbook editing exercise</a>.</p>
+  <h2 id="save-contract">Save contract</h2>
+  <p id="contract">Save replaces only changed text ranges and assigns missing block IDs. Unchanged source, links, assets, comments, and metadata remain untouched.</p>
+  <h3 id="conflict">When disk content changes</h3>
+  <p id="copy-first">A stale save is rejected. Copy unsaved text before explicitly reloading; this prototype does not merge changes.</p>
+  <h2 id="source-editor">Use a source editor for structure</h2>
+  <p id="structure">Adding sections, formatting, links, tables, or images is outside this text-only authoring slice.</p>
+</body>
+</html>
