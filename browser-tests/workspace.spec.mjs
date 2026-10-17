@@ -174,3 +174,150 @@ test('theme, text size, path filtering and section navigation remain application
   await page.setViewportSize({ width: 520, height: 900 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
+
+async function reviewHandbook(page) {
+  const frame = await handbook(page);
+  await page.getByRole('button', { name: 'Review', exact: true }).click();
+  await expect(page.locator('#review-panel')).toBeVisible();
+  await expect(page.locator('#review-threads')).toContainText('No comments yet');
+  await page.getByLabel('Your display name (unverified)', { exact: true }).fill('Local reviewer');
+  return frame;
+}
+
+test('reviewing saves anchored sidecar threads, replies and resolution without changing HTML', async ({ page }, testInfo) => {
+  const filename = path.join(root, 'examples', 'handbook.html');
+  const before = await readFile(filename);
+  const frame = await reviewHandbook(page);
+  await frame.locator('#open-format').click();
+  await expect(page.locator('#comment-target')).toHaveText('Passage in #open-format');
+  await page.getByLabel('New comment', { exact: true }).fill('Can we clarify the source-preservation guarantee? <script>not code</script>');
+  await page.getByRole('button', { name: 'Save comment locally', exact: true }).click();
+  await expect(page.locator('#review-threads')).toContainText('source-preservation guarantee? <script>not code</script>');
+  await expect(page.locator('#review-threads script')).toHaveCount(0);
+  await expect(page.locator('#review-count')).toHaveText('(1 open)');
+  await expect(frame.locator('#open-format')).toHaveAttribute('data-accord-anchored', '');
+  await expect(frame.locator('#open-format > span')).toHaveAttribute('contenteditable', 'false');
+  let sidecar = JSON.parse(await readFile(`${filename}.accord-review.json`, 'utf8'));
+  expect(sidecar.schemaVersion).toBe(1);
+  expect(sidecar.document).toBe('examples/handbook.html');
+  expect(sidecar.threads[0].anchor.blockId).toBe('open-format');
+  expect(sidecar.threads[0].anchor.documentVersion).toMatch(/^[a-f0-9]{64}$/);
+  await page.getByRole('button', { name: 'Reply', exact: true }).click();
+  await page.getByLabel('Your reply', { exact: true }).fill('Yes. Only source text ranges are replaced.');
+  await page.getByRole('button', { name: 'Save reply locally', exact: true }).click();
+  await expect(page.locator('#review-threads .reply')).toContainText('Only source text ranges');
+  await page.getByRole('button', { name: 'Resolve', exact: true }).click();
+  await expect(page.locator('#review-count')).toHaveText('(0 open)');
+  await page.getByLabel('Show resolved threads', { exact: true }).uncheck();
+  await expect(page.locator('#review-threads')).toContainText('Resolved threads are hidden');
+  await page.getByLabel('Show resolved threads', { exact: true }).check();
+  await page.getByRole('button', { name: 'Reopen', exact: true }).click();
+  await expect(page.locator('#review-count')).toHaveText('(1 open)');
+  await page.getByRole('button', { name: 'Refresh comments', exact: true }).click();
+  await expect(page.locator('#review-threads')).toContainText('Only source text ranges');
+  sidecar = JSON.parse(await readFile(`${filename}.accord-review.json`, 'utf8'));
+  expect(sidecar.threads[0].status).toBe('open');
+  expect(sidecar.threads[0].replies).toHaveLength(1);
+  expect(await readFile(filename)).toEqual(before);
+  await page.screenshot({ path: testInfo.outputPath('review-workspace.png'), fullPage: true });
+});
+
+test('review passage selection and unsaved comment navigation support save-and-continue', async ({ page }) => {
+  const frame = await reviewHandbook(page);
+  const text = frame.locator('#open-format > [data-accord-text]');
+  await text.evaluate(node => {
+    const range = node.ownerDocument.createRange();
+    range.setStart(node.firstChild, 0);
+    range.setEnd(node.firstChild, 8);
+    const selection = node.ownerDocument.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+    node.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+  });
+  await expect(page.locator('#comment-quote')).toHaveText('The file');
+  await page.getByLabel('New comment', { exact: true }).fill('A selected passage comment');
+  await page.getByRole('button', { name: 'examples/notes/decisions.html', exact: true }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.getByRole('button', { name: 'Keep editing', exact: true }).click();
+  await expect(page.getByLabel('New comment', { exact: true })).toHaveValue('A selected passage comment');
+  await page.getByRole('button', { name: 'examples/notes/decisions.html', exact: true }).click();
+  await page.getByRole('button', { name: 'Save and continue', exact: true }).click();
+  await expect(frame.locator('h1')).toHaveText('Companion notes');
+  const sidecar = JSON.parse(await readFile(path.join(root, 'examples', 'handbook.html.accord-review.json'), 'utf8'));
+  expect(sidecar.threads[0].anchor.quote).toBe('The file');
+  await page.getByRole('button', { name: 'examples/handbook.html', exact: true }).click();
+  await page.getByRole('button', { name: 'Review', exact: true }).click();
+  await expect(page.locator('#review-threads')).toContainText('A selected passage comment');
+});
+
+test('changed sidecar retains draft until refresh; changed document rejects new anchors and marks stale saved threads', async ({ page }) => {
+  const filename = path.join(root, 'examples', 'handbook.html');
+  const frame = await reviewHandbook(page);
+  await frame.locator('#open-format').click();
+  await page.getByLabel('New comment', { exact: true }).fill('First comment');
+  await page.getByRole('button', { name: 'Save comment locally', exact: true }).click();
+  await expect(page.locator('#review-count')).toHaveText('(1 open)');
+  const sidecarName = `${filename}.accord-review.json`;
+  const other = JSON.parse(await readFile(sidecarName, 'utf8'));
+  other.threads[0].body = 'Changed in another tab';
+  await writeFile(sidecarName, JSON.stringify(other));
+  await page.getByLabel('New comment', { exact: true }).fill('Keep this draft');
+  await page.getByRole('button', { name: 'Save comment locally', exact: true }).click();
+  await expect(page.locator('#message')).toHaveClass('error');
+  await expect(page.getByLabel('New comment', { exact: true })).toHaveValue('Keep this draft');
+  await page.getByRole('button', { name: 'Refresh comments', exact: true }).click();
+  await expect(page.locator('#review-threads')).toContainText('Changed in another tab');
+  await expect(page.getByLabel('New comment', { exact: true })).toHaveValue('Keep this draft');
+  const original = await readFile(filename, 'utf8');
+  await writeFile(filename, original.replace('The file on disk is the document.', 'Disk changed under review.'));
+  await page.getByRole('button', { name: 'Save comment locally', exact: true }).click();
+  await expect(page.locator('#message')).toHaveClass('error');
+  await expect(page.getByLabel('New comment', { exact: true })).toHaveValue('Keep this draft');
+  await page.getByRole('button', { name: 'Reload disk', exact: true }).click();
+  await page.getByRole('button', { name: 'Discard and continue', exact: true }).click();
+  await page.getByRole('button', { name: 'Review', exact: true }).click();
+  await expect(page.locator('#review-threads')).toContainText('Stale');
+  await expect(page.getByRole('button', { name: 'Go to passage', exact: true })).toHaveCount(0);
+  expect(JSON.parse(await readFile(sidecarName, 'utf8')).threads).toHaveLength(1);
+});
+
+test('whole-document comments work on read-only previews and malformed sidecars fail visibly', async ({ page }) => {
+  await handbook(page);
+  await page.getByRole('button', { name: 'examples/unsupported.html', exact: true }).click();
+  await page.getByRole('button', { name: 'Review', exact: true }).click();
+  await expect(page.locator('#review-threads')).toContainText('No comments yet');
+  await page.getByLabel('Your display name (unverified)', { exact: true }).fill('Reader');
+  await page.getByLabel('New comment', { exact: true }).fill('The custom content needs a source-editor review.');
+  await page.getByRole('button', { name: 'Save comment locally', exact: true }).click();
+  await expect(page.locator('#review-threads')).toContainText('Whole document');
+  const filename = path.join(root, 'examples', 'unsupported.html.accord-review.json');
+  await writeFile(filename, '{"schemaVersion":999,"keep":"do not replace"}');
+  await page.getByRole('button', { name: 'Refresh comments', exact: true }).click();
+  await expect(page.locator('#review-error')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Save comment locally', exact: true })).toBeDisabled();
+  expect(await readFile(filename, 'utf8')).toBe('{"schemaVersion":999,"keep":"do not replace"}');
+});
+
+test('review transition settles unsaved HTML and keyboard anchors; leaving a review draft requires consent', async ({ page }) => {
+  const frame = await handbook(page);
+  await page.getByRole('button', { name: 'Edit text', exact: true }).click();
+  await frame.locator('#category > span').fill('Saved before reviewing');
+  await page.getByRole('button', { name: 'Review', exact: true }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.getByRole('button', { name: 'Save and continue', exact: true }).click();
+  await expect(page.locator('#review-threads')).toContainText('No comments yet');
+  await expect(frame.locator('#category')).toHaveText('Saved before reviewing');
+  await frame.locator('#open-format').press('Enter');
+  await expect(page.getByLabel('New comment', { exact: true })).toBeFocused();
+  await expect(page.locator('#comment-target')).toHaveText('Passage in #open-format');
+  await page.getByLabel('New comment', { exact: true }).fill('A draft not yet saved');
+  await page.getByRole('button', { name: 'Edit text', exact: true }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.getByRole('button', { name: 'Keep editing', exact: true }).click();
+  await expect(page.locator('#review-panel')).toBeVisible();
+  await expect(page.getByLabel('New comment', { exact: true })).toHaveValue('A draft not yet saved');
+  await page.getByRole('button', { name: 'Read', exact: true }).click();
+  await page.getByRole('button', { name: 'Discard and continue', exact: true }).click();
+  await expect(page.locator('#review-panel')).toBeHidden();
+  await expect(frame.locator('#open-format')).not.toHaveAttribute('tabindex', '0');
+});

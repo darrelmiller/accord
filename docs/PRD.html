@@ -308,7 +308,7 @@
 <tr>
 <td>RV-11</td>
 <td>Core</td>
-<td>Permit review records to be persisted inside the HTML, outside the body passages they annotate. A separate sidecar file must not be mandatory. The interoperable encoding is unresolved.</td>
+<td>Persist review records in an open, versioned representation associated with the document without requiring application-only storage. The local review prototype uses a JSON sidecar; existing embedded records must remain intact. Whether to support embedded import/export as a portability option remains open.</td>
 </tr>
 <tr>
 <td>RV-12</td>
@@ -317,7 +317,7 @@
 </tr>
 </tbody>
 </table>
-<p>Embedded review metadata is a preferred capability, not a settled transport design. The relationship between submitted review records and the editor's embedded records must be specified. Custom elements, Web Annotation selectors, review branches, forks, and services are candidates rather than requirements.</p>
+<p>The initial preference for embedded review metadata is reconsidered after validating multi-file workspaces. The local prototype separates review discussions into a versioned JSON sidecar, keeping document content and review-only changes independent. A copied HTML file does not carry that sidecar automatically. The durable product storage/transport contract, optional embedded portability, and relationship between submitted and local records remain open (OI-08); this is not a remote submission design.</p>
 <h3 id="history-and-comparison">6.5 History and comparison</h3>
 <table>
 <thead>
@@ -491,7 +491,7 @@
 </tr>
 <tr>
 <td>2. Editorial review</td>
-<td>Pin a review revision; draft and submit comments/suggestions; retrieve them; accept/reject safely; persist embedded review records.</td>
+<td>Pin a review revision; draft and submit comments/suggestions; retrieve them; accept/reject safely; persist versioned review records associated with documents. The local commenting sub-slice does not imply remote submission or suggestion acceptance.</td>
 </tr>
 <tr>
 <td>3. History and publication</td>
@@ -560,7 +560,7 @@
 <li>The first slice uses a local companion and browser UI, not an extension. Installation and platform decisions remain open.</li>
 <li>Which repository hosts and operating systems are initially supported?</li>
 <li>What is the authorized review path for readers without repository write permission?</li>
-<li>How do multiple review submissions become embedded records without lost updates?</li>
+<li>How do multiple review submissions become durable associated records without lost updates, and is optional embedded import/export useful?</li>
 <li>Is editorial ownership advisory within a trusted repository, or enforced against direct writes? How are ownership transfers handled?</li>
 <li>Which named milestones and publication states are required?</li>
 <li>Are reviews private by default, and which roles may see them?</li>
@@ -606,7 +606,7 @@
 </tr>
 <tr>
 <td>Custom tags versus JSON/sidecars</td>
-<td>In-file review persistence is supported; exact representation is not selected.</td>
+<td>Open, associated review records are required; the local prototype uses JSON sidecars and preserves existing embedded metadata. Long-term representation and embedded portability are not settled.</td>
 <td>Versioned HTML/review profile specification.</td>
 </tr>
 <tr>
@@ -660,6 +660,7 @@
 <h3 id="initial-implementation-decision">Initial implementation decision</h3>
 <p>The selected first slice is a local companion serving a browser application: open an existing repository, navigate HTML documents with a dynamic TOC, edit supported content visually, and save safely. Remote review submission, publication, and provenance are subsequent work. Local files remain authoritative; using HTTP on loopback is a presentation/interaction adapter, not remote document hosting. Direct <code>file://</code> editing and a browser extension are not initial requirements. jj remains an implementation candidate, not a dependency requirement.</p>
 <h3 id="gaps-to-resolve-during-initial-design">Gaps to resolve during initial design</h3>
+<p><strong>Local commenting sub-slice:</strong> Review mode treats document text as read-only and saves comments, replies, and open/resolved thread state in a companion JSON sidecar. Passage anchors retain a block ID, quoted text, and the exact document fingerprint seen by the reviewer. Missing, changed, or ambiguous targets must be explicit rather than silently reattached. Names are locally declared and unverified; local save is not remote submission. Replacement suggestions, acceptance, authenticated editorial policy, and immutable review snapshots remain subsequent work. The sidecar is a provisional implementation choice, not a requirement for a proprietary document format.</p>
 <ul>
 <li><strong>External changes and recovery:</strong> Detect edits by agents, other editors, and repository operations; do not overwrite a changed file from a stale browser buffer. Define atomic save, recovery, and multiple-tab behavior.</li>
 <li><strong>Round-trip contract:</strong> Define supported HTML/CSS and unsupported-content behavior, including paste from other tools, whitespace-sensitive content, accessibility metadata, and preservation of unknown markup.</li>
@@ -667,7 +668,7 @@
 <li><strong>Development coexistence:</strong> Do not move the user's branch, stage code, or mutate existing development work to operate on documents. Worktree and dependency access need explicit treatment.</li>
 <li><strong>Identity and review authority:</strong> Decide how editor ownership and reviewer identity are represented and verified; a Git author string is not authentication.</li>
 <li><strong>Document lifecycle:</strong> Define rename, move, delete, and ownership-transfer behavior so anchors, review links, and history do not silently break.</li>
-<li><strong>Publication privacy:</strong> Hidden embedded reviews are still in source and Git history; sanitized publication is distinct from granting repository access.</li>
+<li><strong>Publication privacy:</strong> Embedded reviews and sidecars remain readable through repository access and Git history; sanitized publication is distinct from granting repository access.</li>
 <li><strong>Project readiness:</strong> License, distribution/update mechanism, supported platforms, name availability, and a representative end-to-end pilot remain decisions.</li>
 </ul>
 <p>This draft captures the exploratory discussion of 2026-10-16. Core directions were expressed during that discussion; delivery slices, default publication privacy behavior, and acceptance scenarios are proposed refinements for approval.</p>
@@ -711,10 +712,10 @@
 <p><strong>Status:</strong> Open</p>
 <p><strong>Decision needed:</strong> Define document and asset lifecycle operations, persistent identity across path changes, redirect or broken-link behavior, anchor stability, and treatment of reviews targeting moved or deleted content.</p>
 <p><strong>Consequences:</strong> Naive path changes can orphan reviews and break shared links or published references. Silent anchor reassignment can attach a suggestion to the wrong passage.</p>
-<h3 id="oi-08-embedded-review-confidentiality">OI-08: Embedded review confidentiality</h3>
+<h3 id="oi-08-embedded-review-confidentiality">OI-08: Review storage, portability, and confidentiality</h3>
 <p><strong>Status:</strong> Open</p>
-<p><strong>Decision needed:</strong> Specify interoperable embedded review metadata, privacy defaults, repository/history visibility, redaction, and the relationship between review-bearing sources and sanitized publication artifacts.</p>
-<p><strong>Consequences:</strong> Hidden metadata remains readable in HTML source and reachable repository history. Visual hiding is not redaction; downloaded copies cannot be revoked by later permission changes.</p>
+<p><strong>Decision needed:</strong> Validate the provisional per-document JSON sidecar against optional embedded import/export. Specify schema evolution, document/sidecar pairing across copies and renames, review transport, privacy defaults, repository/history visibility, redaction, and the relationship between review-bearing sources and sanitized publication artifacts. Existing embedded records are preserved, not silently migrated or interpreted.</p>
+<p><strong>Consequences:</strong> Sidecars separate content/review edits and avoid leaking comments when HTML alone is shared, but can be left behind when copying or renaming a document. Embedded records travel with the file but mix private discussions into its source and edits. Both remain visible to repository readers and in reachable history. Visual hiding is not redaction; downloaded copies cannot be revoked by later permission changes.</p>
 <h3 id="oi-09-publicprivate-publication-and-selected-dependencies">OI-09: Public/private publication and selected dependencies</h3>
 <p><strong>Status:</strong> Open</p>
 <p><strong>Decision needed:</strong> Choose initial public/private hosting scope, authorization enforcement, immutable/latest behavior, and explicit selection of document dependencies, including external or unavailable resources.</p>

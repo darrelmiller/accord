@@ -1,4 +1,5 @@
 import type { DocumentView, Heading, WorkspaceInfo } from '../shared/model.js';
+import type { ReviewView } from '../shared/review.js';
 
 function required<T extends HTMLElement>(selector: string): T {
   const value = document.querySelector<T>(selector);
@@ -10,6 +11,7 @@ const frame = required<HTMLIFrameElement>('#document-frame');
 const saveButton = required<HTMLButtonElement>('#save');
 const readButton = required<HTMLButtonElement>('#read');
 const editButton = required<HTMLButtonElement>('#edit');
+const reviewButton = required<HTMLButtonElement>('#review');
 const reloadButton = required<HTMLButtonElement>('#reload');
 const filter = required<HTMLInputElement>('#filter');
 const rootInput = required<HTMLInputElement>('#root');
@@ -23,6 +25,14 @@ const token = sessionStorage.getItem('accord-token') ?? '';
 let workspace: WorkspaceInfo | undefined;
 let current: DocumentView | undefined;
 let editing = false;
+let reviewing = false;
+let reviews: ReviewView | undefined;
+let reviewLoadError = '';
+let selectedAnchor: { blockId: string | null; quote: string; documentVersion: string } | undefined;
+let replyTo: string | undefined;
+const commentBody = required<HTMLTextAreaElement>('#comment-body');
+const authorInput = required<HTMLInputElement>('#review-author');
+authorInput.value = sessionStorage.getItem('accord-review-author') ?? '';
 let busy = false;
 let dirty = false;
 let activeSection = '';
@@ -52,15 +62,34 @@ async function api<T>(route: string, input?: object): Promise<T> {
 function updateControls(): void {
   saveButton.disabled = busy || !dirty || !current?.editable;
   editButton.disabled = busy || !current?.editable;
+  reviewButton.disabled = busy || !current;
   readButton.disabled = busy || !current;
   reloadButton.disabled = busy || !current;
   required<HTMLButtonElement>('#open').disabled = busy;
-  readButton.setAttribute('aria-pressed', String(!editing));
+  readButton.setAttribute('aria-pressed', String(!editing && !reviewing));
   editButton.setAttribute('aria-pressed', String(editing));
+  reviewButton.setAttribute('aria-pressed', String(reviewing));
   const state = required('#save-state');
   state.textContent = busy ? 'Working…' : !current ? 'No document open' : dirty ? 'Unsaved changes · this tab only' : 'On disk · local working draft';
   state.classList.toggle('dirty', dirty);
   required('#editing-help').hidden = !editing;
+  required('#review-panel').hidden = !reviewing;
+  document.querySelector('.document-stage')?.classList.toggle('with-review', reviewing);
+  frame.contentDocument?.body.classList.toggle('reviewing', reviewing);
+  for (const block of frame.contentDocument?.querySelectorAll<HTMLElement>('h1[id],h2[id],h3[id],h4[id],h5[id],h6[id],p[id],li[id],dt[id],dd[id],th[id],td[id],caption[id],figcaption[id],blockquote[id],pre[id]') ?? []) {
+    if (reviewing && !busy) {
+      block.tabIndex = 0;
+      block.dataset.accordReviewBlock = '';
+    } else {
+      block.removeAttribute('tabindex');
+      block.removeAttribute('data-accord-review-block');
+    }
+  }
+  required<HTMLFieldSetElement>('#comment-fields').disabled = busy;
+  required<HTMLButtonElement>('#refresh-reviews').disabled = busy;
+  required<HTMLButtonElement>('#save-comment').disabled = busy || !reviews || !commentBody.value.trim() || !authorInput.value.trim();
+  for (const button of document.querySelectorAll<HTMLButtonElement>('#review-threads button')) button.disabled = busy;
+  required('#comment-state').textContent = commentDirty() ? 'Unsaved review draft · this tab only' : 'No unsaved comment';
   for (const node of textNodes()) {
     const canEdit = editing && !busy;
     node.contentEditable = canEdit ? 'plaintext-only' : 'false';
@@ -97,7 +126,193 @@ function collectEdits(): { id: string; text: string }[] {
 
 function setMode(value: boolean): void {
   editing = value && !!current?.editable;
+  reviewing = false;
+  clearCommentDraft();
+  highlightAnchors();
   updateControls();
+}
+
+function commentDirty(): boolean {
+  return !!commentBody.value;
+}
+
+function clearCommentDraft(): void {
+  commentBody.value = '';
+  replyTo = undefined;
+  selectedAnchor = undefined;
+  updateCommentTarget();
+}
+
+function updateCommentTarget(): void {
+  required('#comment-target').textContent = replyTo ? 'Reply to existing thread' :
+    selectedAnchor?.blockId ? `Passage in #${selectedAnchor.blockId}` : 'Whole document';
+  const quote = required('#comment-quote');
+  quote.hidden = !selectedAnchor?.quote;
+  quote.textContent = selectedAnchor?.quote ?? '';
+  required('#comment-label').textContent = replyTo ? 'Your reply' : 'New comment';
+  required<HTMLButtonElement>('#save-comment').textContent = replyTo ? 'Save reply locally' : 'Save comment locally';
+  required('#cancel-reply').hidden = !replyTo;
+  required<HTMLButtonElement>('#document-comment').disabled = !!replyTo;
+  highlightAnchors();
+}
+
+function highlightAnchors(): void {
+  const content = frame.contentDocument;
+  if (!content) return;
+  for (const node of content.querySelectorAll('[data-accord-anchored],[data-accord-selected]')) {
+    node.removeAttribute('data-accord-anchored');
+    node.removeAttribute('data-accord-selected');
+  }
+  if (!reviewing) return;
+  for (const thread of reviews?.threads ?? []) {
+    if (thread.anchor.blockId && thread.anchorState === 'current' && thread.status === 'open') {
+      content.getElementById(thread.anchor.blockId)?.setAttribute('data-accord-anchored', '');
+    }
+  }
+  if (selectedAnchor?.blockId) content.getElementById(selectedAnchor.blockId)?.setAttribute('data-accord-selected', '');
+}
+
+function renderReviews(): void {
+  const list = required('#review-threads');
+  list.replaceChildren();
+  const error = required('#review-error');
+  error.hidden = !reviewLoadError;
+  error.textContent = reviewLoadError;
+  required('#review-baseline').textContent = current ? `Document baseline ${current.version.slice(0, 12)} · local working draft` : '';
+  const threads = reviews?.threads ?? [];
+  required('#review-count').textContent = `(${threads.filter(thread => thread.status === 'open').length} open)`;
+  const showResolved = required<HTMLInputElement>('#show-resolved').checked;
+  for (const thread of threads.filter(thread => showResolved || thread.status === 'open')) {
+    const card = document.createElement('article');
+    card.className = 'review-thread';
+    card.dataset.threadId = thread.id;
+    const state = document.createElement('span');
+    state.className = 'thread-state';
+    const anchorLabel = { current: 'Passage matched', stale: 'Stale / ambiguous passage · check source', missing: 'Target missing · check source', document: 'Whole document' };
+    state.textContent = `${thread.status === 'open' ? 'Open' : 'Resolved'} · ${anchorLabel[thread.anchorState]}`;
+    card.append(state);
+    const appendMessage = (entry: { author: string; body: string; createdAt: string }, reply = false) => {
+      const container = document.createElement('div');
+      if (reply) container.className = 'reply';
+      const name = document.createElement('h3');
+      name.textContent = `${entry.author} · unverified`;
+      const time = document.createElement('time');
+      time.dateTime = entry.createdAt;
+      time.textContent = new Date(entry.createdAt).toLocaleString();
+      const body = document.createElement('p');
+      body.textContent = entry.body;
+      container.append(name, time, body);
+      card.append(container);
+    };
+    if (thread.anchor.quote) {
+      const quote = document.createElement('blockquote');
+      quote.textContent = thread.anchor.quote;
+      card.append(quote);
+    }
+    appendMessage(thread);
+    thread.replies.forEach(reply => appendMessage(reply, true));
+    const actions = document.createElement('div');
+    actions.className = 'thread-actions';
+    const button = (label: string, action: () => void) => {
+      const value = document.createElement('button');
+      value.type = 'button';
+      value.className = 'quiet';
+      value.textContent = label;
+      value.disabled = busy;
+      value.addEventListener('click', action);
+      actions.append(value);
+    };
+    if (thread.anchor.blockId && thread.anchorState === 'current') {
+      button('Go to passage', () => {
+        scrollToSection(thread.anchor.blockId!);
+      });
+    }
+    button('Reply', () => navigate(async () => {
+      clearCommentDraft();
+      replyTo = thread.id;
+      selectedAnchor = thread.anchor;
+      updateCommentTarget();
+      commentBody.focus();
+    }));
+    button(thread.status === 'open' ? 'Resolve' : 'Reopen', () => {
+      void run(async () => {
+        if (!authorInput.value.trim()) throw new Error('Enter your unverified display name before updating a thread.');
+        await mutateReview(thread.status === 'open' ? 'resolve' : 'reopen', { threadId: thread.id });
+      });
+    });
+    card.append(actions);
+    list.append(card);
+  }
+  if (reviews && !list.childElementCount) list.textContent = threads.length ? 'No open threads. Resolved threads are hidden.' : 'No comments yet. Start a local discussion.';
+  highlightAnchors();
+}
+
+async function refreshReviews(): Promise<void> {
+  if (!current) return;
+  try {
+    const loaded = await api<ReviewView>(`/api/reviews?path=${encodeURIComponent(current.path)}`);
+    reviews = loaded;
+    reviewLoadError = '';
+  } catch (error) {
+    reviews = undefined;
+    reviewLoadError = error instanceof Error ? error.message : 'Could not load review sidecar.';
+    throw error;
+  } finally { renderReviews(); }
+}
+
+async function enterReview(): Promise<void> {
+  if (!current) return;
+  // Re-read disk before starting a review; navigation guard settles any local text draft first.
+  await loadDocument(current.path);
+  reviewing = true;
+  editing = false;
+  updateControls();
+  await refreshReviews();
+}
+
+async function mutateReview(action: 'comment' | 'reply' | 'resolve' | 'reopen', details: object): Promise<void> {
+  if (!current || !reviews) throw new Error('Refresh the review sidecar before saving.');
+  reviews = await api<ReviewView>('/api/reviews', {
+    path: current.path, version: reviews.version, action, author: authorInput.value.trim(), ...details
+  });
+  sessionStorage.setItem('accord-review-author', authorInput.value.trim());
+  renderReviews();
+  message('Review saved locally in the document’s .accord-review.json sidecar. Nothing was submitted or published.');
+}
+
+async function saveCommentDraft(): Promise<void> {
+  if (!commentDirty()) return;
+  if (!authorInput.value.trim()) throw new Error('Enter your unverified display name before saving a comment.');
+  if (!commentBody.value.trim()) throw new Error('A comment cannot be only whitespace. Keep editing or explicitly discard it.');
+  await mutateReview(replyTo ? 'reply' : 'comment', {
+    body: commentBody.value,
+    ...(replyTo ? { threadId: replyTo } : {
+      anchor: selectedAnchor ?? { blockId: null, quote: '', documentVersion: current!.version }
+    })
+  });
+  clearCommentDraft();
+  highlightAnchors();
+}
+
+function captureAnchor(target: EventTarget | null, useSelection: boolean): void {
+  if (!reviewing || busy || replyTo || !current) return;
+  const content = frame.contentDocument;
+  if (!content) return;
+  const selection = content.getSelection();
+  const selectionNode = selection?.anchorNode;
+  const start = useSelection && selection && !selection.isCollapsed ?
+    (selectionNode?.nodeType === 1 ? selectionNode as Element : selectionNode?.parentElement) :
+    isElement(target) ? target : null;
+  const block = start?.closest<HTMLElement>('h1,h2,h3,h4,h5,h6,p,li,dt,dd,th,td,caption,figcaption,blockquote,pre');
+  if (!block?.id) return;
+  if (useSelection && selection && !selection.isCollapsed && selection.focusNode && !block.contains(selection.focusNode)) {
+    message('Select text within one existing block to anchor a comment.');
+    return;
+  }
+  const quote = useSelection && selection && !selection.isCollapsed ? selection.toString() : block.textContent ?? '';
+  if (!quote.trim() || quote.length > 10_000) { message('Select a passage of at most 10,000 characters.'); return; }
+  selectedAnchor = { blockId: block.id, quote, documentVersion: current.version };
+  updateCommentTarget();
 }
 
 function updateActiveSection(id: string): void {
@@ -156,7 +371,7 @@ function showInfo(): void {
   for (const [name, value] of [
     ['Title', current.title], ['Path', current.path], ['Context', 'Local working draft · not a review snapshot'],
     ['Disk fingerprint', current.version.slice(0, 12)], ['Editing profile', current.editable ? 'Text within existing HTML structure' : 'Read-only · unsupported HTML'],
-    ['Inert JSON records', `${current.reviewRecords} preserved (uninterpreted)`]
+    ['Embedded JSON records', `${current.reviewRecords} preserved (uninterpreted); new comments use a separate sidecar`]
   ]) {
     const term = document.createElement('dt');
     term.textContent = name!;
@@ -167,6 +382,10 @@ function showInfo(): void {
 }
 
 async function display(view: DocumentView, hash = ''): Promise<void> {
+  reviewing = false;
+  reviews = undefined;
+  reviewLoadError = '';
+  clearCommentDraft();
   current = view;
   dirty = false;
   activeSection = '';
@@ -208,12 +427,27 @@ async function display(view: DocumentView, hash = ''): Promise<void> {
     }
   });
   content.addEventListener('drop', event => { event.preventDefault(); message('Drag and drop is disabled to preserve document structure.'); });
+  content.addEventListener('mouseup', event => { captureAnchor(event.target, true); });
+  content.addEventListener('keyup', event => {
+    if (event.key.startsWith('Arrow') && event.shiftKey) captureAnchor(event.target, true);
+  });
+  content.addEventListener('keydown', event => {
+    if (event.key === 'Enter' && reviewing && isElement(event.target) &&
+        event.target.hasAttribute('data-accord-review-block')) {
+      event.preventDefault();
+      captureAnchor(event.target, false);
+      commentBody.focus();
+    }
+  });
   content.addEventListener('click', event => {
     const target = isElement(event.target) ? event.target : null;
     const link = target?.closest<HTMLAnchorElement>('a');
-    if (!link) return;
+    if (!link) {
+      if (content.getSelection()?.isCollapsed) captureAnchor(event.target, false);
+      return;
+    }
     event.preventDefault();
-    if (editing) return;
+    if (editing || reviewing) return;
     const path = link.dataset.accordLink;
     if (!path) { message('External, missing, and non-document links are not opened by this local prototype.'); return; }
     const hash = link.dataset.accordHash ?? '';
@@ -250,7 +484,7 @@ async function save(): Promise<void> {
 
 function navigate(action: () => Promise<void>): void {
   if (busy) return;
-  if (dirty) {
+  if (dirty || commentDirty()) {
     pendingNavigation = action;
     dialog.showModal();
   } else void run(action);
@@ -281,6 +515,10 @@ required<HTMLFormElement>('#open-form').addEventListener('submit', event => {
     current = undefined;
     dirty = false;
     editing = false;
+    reviewing = false;
+    reviews = undefined;
+    reviewLoadError = '';
+    clearCommentDraft();
     frame.hidden = true;
     frame.srcdoc = '';
     required('#welcome').hidden = false;
@@ -296,8 +534,16 @@ required<HTMLFormElement>('#open-form').addEventListener('submit', event => {
   });
 });
 filter.addEventListener('input', renderDocuments);
-readButton.addEventListener('click', () => setMode(false));
-editButton.addEventListener('click', () => { setMode(true); textNodes()[0]?.focus(); });
+readButton.addEventListener('click', () => {
+  if (commentDirty()) navigate(async () => { setMode(false); });
+  else setMode(false);
+});
+editButton.addEventListener('click', () => {
+  const edit = async () => { setMode(true); textNodes()[0]?.focus(); };
+  if (commentDirty()) navigate(edit);
+  else void edit();
+});
+reviewButton.addEventListener('click', () => { navigate(enterReview); });
 saveButton.addEventListener('click', () => { void run(save); });
 reloadButton.addEventListener('click', () => { if (current) navigate(() => loadDocument(current!.path)); });
 required('#stay').addEventListener('click', () => { pendingNavigation = undefined; dialog.close(); });
@@ -312,7 +558,7 @@ required('#save-continue').addEventListener('click', () => {
   const action = pendingNavigation;
   pendingNavigation = undefined;
   dialog.close();
-  void run(async () => { await save(); if (action) await action(); });
+  void run(async () => { await save(); await saveCommentDraft(); if (action) await action(); });
 });
 required('#theme').addEventListener('click', () => {
   const theme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
@@ -331,7 +577,7 @@ required('#copy-link').addEventListener('click', () => {
   });
 });
 window.addEventListener('beforeunload', event => {
-  if (dirty) { event.preventDefault(); event.returnValue = ''; }
+  if (dirty || commentDirty()) { event.preventDefault(); event.returnValue = ''; }
 });
 window.addEventListener('hashchange', () => {
   const params = new URLSearchParams(location.hash.slice(1));
@@ -340,4 +586,16 @@ window.addEventListener('hashchange', () => {
   if (path && workspace?.documents.includes(path)) navigate(() => loadDocument(path, hash));
 });
 if (!token) message('Open the private launch URL printed by npm start to authorize this tab.', true);
+commentBody.addEventListener('input', updateControls);
+authorInput.addEventListener('input', updateControls);
+required<HTMLFormElement>('#comment-form').addEventListener('submit', event => {
+  event.preventDefault();
+  void run(saveCommentDraft);
+});
+required('#refresh-reviews').addEventListener('click', () => { void run(refreshReviews); });
+required('#document-comment').addEventListener('click', () => { selectedAnchor = undefined; updateCommentTarget(); });
+required('#cancel-reply').addEventListener('click', () => {
+  navigate(async () => { clearCommentDraft(); });
+});
+required('#show-resolved').addEventListener('change', renderReviews);
 updateControls();

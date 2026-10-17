@@ -3,7 +3,8 @@
 A working first vertical slice: **local companion + browser UI**, not an
 extension. Open an existing Git checkout, discover HTML alongside source code,
 read with a Datatracker-inspired information/contents sidebar, visually edit
-existing text, and save actual HTML. No account, remote, upload, or publication.
+existing text, save actual HTML, and discuss passages in local review threads.
+No account, remote, upload, or publication.
 
 The [canonical product requirements](docs/PRD.html) are semantic HTML and an
 editable dogfooding document. They retain the original requirements and the
@@ -40,6 +41,8 @@ yourself when finished. Start with `examples/handbook.html`, follow its relative
 link to `examples/notes/decisions.html`, or select `docs/PRD.html`.
 `examples/product-code.ts` is a non-document fixture; it is never exposed or
 modified. `examples/unsupported.html` demonstrates inert read-only handling.
+`examples/notes/decisions.html.accord-review.json` contains an illustrative local
+thread; open the companion notes document and choose Review to inspect it.
 
 Choose **Edit text**, click existing text (including a heading or table cell),
 and type. The hierarchical contents list updates immediately. **Save locally**
@@ -57,6 +60,56 @@ npm start
 ```
 
 Stop the companion with Ctrl+C. A restart requires its new launch URL.
+
+## Local reviewing and comments
+
+Choose **Review** to keep document text read-only while discussing it. Enter a
+display name (explicitly **unverified**), select a passage within one text block
+or click the block, and write a comment. Keyboard users can Tab to a document
+block and press Enter to target it and focus the composer. **Use whole document**
+removes the passage anchor. Save comments locally, reply to threads, resolve/reopen them,
+toggle resolved threads, and jump back to matched passages. Open anchored
+threads highlight their target blocks. This is a local discussion, **not a
+submitted review or authenticated approval**.
+
+New discussions live beside the HTML, for example
+`examples/handbook.html.accord-review.json`. This **provisional sidecar choice**
+keeps document and review-only Git changes separate, allows comments without
+rewriting HTML, and reduces accidental disclosure when sharing only the HTML.
+The tradeoff: copy or rename the pair together or the comments are left behind.
+Embedded comments would travel with a single file but mix private discussion
+into document source. Existing embedded JSON records remain byte-for-byte
+untouched; no automatic import, export, or migration is claimed. The canonical
+PRD records the tradeoff and the still-open long-term choice in OI-08.
+
+Each thread stores its baseline document SHA-256, quoted passage, optional block
+ID, author declaration, timestamps, replies, and open/resolved status in
+`schemaVersion: 1` JSON. Never assume a display name proves identity. An old
+baseline alone does not invalidate an unchanged quote: anchors are checked
+against their block, with changed/ambiguous/missing targets clearly labelled.
+Only matched anchors offer passage navigation; stale discussions are retained,
+not discarded or silently reassigned.
+
+Passage comments require a **persisted unique ID in the source HTML**, not a
+preview-only provisional ID. If the source lacks IDs, use a whole-document
+comment or assign IDs in your source editor first. Review never modifies HTML
+merely to create an anchor. Repeated quoted text in the same block is ambiguous
+and must be narrowed to a unique passage or reviewed at document level.
+
+Starting Review reloads disk after resolving any unsaved text edits. A changed
+document rejects a new comment against the stale baseline. A changed sidecar
+rejects a stale comment/reply/status write rather than losing other discussions.
+**Refresh comments** reloads the sidecar without clearing the current draft;
+retry after checking it. Text and review drafts share the unsaved-navigation
+guard. Drafts are tab-local until explicitly saved and do not survive a crash.
+The display name is remembered only in that tab's session storage.
+
+Review sidecars contain private discussion in cleartext and become visible to
+anyone with filesystem/repository access, including Git history if committed.
+They are not a security boundary. Do not publish a repository directory as a
+site. Review mode does not change staging, commits, branches, HTML, or assets.
+Remote submission, suggestions/acceptance, editor-policy authorization, and
+automatic pair renames remain deferred.
 
 ## Editing and round-trip contract
 
@@ -150,8 +203,9 @@ local secret; it is not repository/editor authentication or a multi-user server.
 
 The companion never serves a repository static root. Discovery skips hidden
 paths (including `.git`), `node_modules`, `vendor`, `dist`, `build`, `coverage`,
-and symlinks/junctions. Only discovered `.html`/`.htm` files and their explicitly
-referenced, supported raster images can be read. Absolute paths, traversal,
+and symlinks/junctions. Only discovered `.html`/`.htm` files, their associated
+review sidecars through schema-validated review APIs, and their explicitly
+referenced supported raster images can be read. Absolute paths, traversal,
 alternate streams, Windows device names, hard-linked file reads, and symlink
 components are rejected, with containment rechecked on use. No asset-write,
 arbitrary-file, Git mutation, repository-build, or command-execution endpoint
@@ -200,6 +254,11 @@ native undo, plain-text paste, save-time freezing, unsaved prompts, conflicts,
 inert read-only content, reading preferences, and PRD dogfooding.
 Tests create temporary Git repositories; they never use real user checkouts.
 
+Review regressions cover sidecar-only persistence, passage and whole-document
+anchors, replies and resolution, unsaved-comment navigation, concurrent/stale
+writes, malformed/unsupported schemas, stale/missing anchors, untrusted comment
+text, and document-byte preservation.
+
 Browser tests default to installed Edge. For another supported Playwright
 channel, set `ACCORD_BROWSER_CHANNEL`. If Edge is unavailable, explicitly
 install Playwright Chromium and select it:
@@ -213,7 +272,7 @@ npm run test:browser
 ## Explicitly deferred
 
 No repository acquisition, policy enforcement, authenticated editorial
-identity, comments/suggestions UI, remote review submission, synchronization,
+identity, replacement suggestions/acceptance UI, remote review submission, synchronization,
 history/versions UI, hosted publication, C2PA, reference database integration,
 real-time co-editing, or full rich-text feature parity. There are no fake
 buttons for these capabilities. There is no jj dependency.

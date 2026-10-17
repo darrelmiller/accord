@@ -59,6 +59,7 @@
         <div class="mode-group" role="group" aria-label="Document mode">
           <button id="read" aria-pressed="true" disabled>Read</button>
           <button id="edit" aria-pressed="false" disabled>Edit text</button>
+          <button id="review" aria-pressed="false" disabled>Review</button>
         </div>
         <span id="save-state" role="status">No document open</span>
         <button id="reload" class="quiet" disabled>Reload disk</button>
@@ -70,15 +71,46 @@
         <span class="eyebrow">A DOCUMENT WORKSPACE, NOT A NEW FORMAT</span>
         <h1>Good documents.<br>Ordinary HTML.</h1>
         <p>Read, navigate, and refine documents in the repository you already use.</p>
-        <div class="welcome-card"><h2>Start with a local checkout</h2><p>Enter its absolute path in the sidebar. Accord finds HTML without running repository scripts, touching source code, or changing your branch.</p><p class="muted small">First slice · plain-text visual editing inside existing structure. Review submission and publication are not available.</p></div>
+        <div class="welcome-card"><h2>Start with a local checkout</h2><p>Enter its absolute path in the sidebar. Accord finds HTML without running repository scripts, touching source code, or changing your branch.</p><p class="muted small">Visual text editing and local comment threads. Remote review submission and publication are not available.</p></div>
       </div>
-      <iframe id="document-frame" title="Isolated document preview" sandbox="allow-same-origin" referrerpolicy="no-referrer" hidden></iframe>
+      <div class="document-stage">
+        <iframe id="document-frame" title="Isolated document preview" sandbox="allow-same-origin" referrerpolicy="no-referrer" hidden></iframe>
+        <aside id="review-panel" aria-label="Local review" hidden>
+          <header class="review-header">
+            <div><h2>Local review <span id="review-count"></span></h2><p class="small muted">Saved in a JSON sidecar, not submitted or published. Names are unverified.</p></div>
+            <button id="refresh-reviews" class="quiet">Refresh comments</button>
+          </header>
+          <p id="review-baseline" class="small muted"></p>
+          <div id="review-error" role="alert" hidden></div>
+          <form id="comment-form">
+            <fieldset id="comment-fields">
+              <label for="review-author">Your display name (unverified)</label>
+              <input id="review-author" maxlength="120" autocomplete="name" required>
+              <div class="anchor-preview">
+                <strong id="comment-target">Whole document</strong>
+                <blockquote id="comment-quote" hidden></blockquote>
+                <p class="small muted">Select a passage or click a text block to anchor a comment. Keyboard: Tab to a block, then Enter.</p>
+                <button id="document-comment" type="button" class="quiet">Use whole document</button>
+              </div>
+              <label id="comment-label" for="comment-body">New comment</label>
+              <textarea id="comment-body" rows="4" maxlength="10000" placeholder="Write a local review comment…" required></textarea>
+              <div class="comment-actions">
+                <button id="save-comment" type="submit" disabled>Save comment locally</button>
+                <button id="cancel-reply" type="button" class="quiet" hidden>Cancel reply</button>
+              </div>
+              <p id="comment-state" role="status" class="small muted">No unsaved comment</p>
+            </fieldset>
+          </form>
+          <label class="resolved-toggle"><input id="show-resolved" type="checkbox" checked> Show resolved threads</label>
+          <div id="review-threads" aria-live="polite"></div>
+        </aside>
+      </div>
       <footer id="editing-help" hidden>Click text to edit. Structure, formatting, links, and images stay fixed. Paste is plain text. Use Ctrl/Cmd+Z to undo before saving.</footer>
     </section>
   </main>
   <dialog id="unsaved">
     <h2>Keep your unsaved changes?</h2>
-    <p>This document has edits that are only in this tab.</p>
+    <p>This document has text edits or a review draft that are only in this tab.</p>
     <div class="dialog-actions">
       <button id="stay" class="quiet">Keep editing</button>
       <button id="discard" class="quiet">Discard and continue</button>

@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "document": "examples/notes/decisions.html",
+  "threads": [
+    {
+      "id": "09d9d721-3307-4419-8bab-33e53ddfe998",
+      "createdAt": "2026-10-17T00:23:21.433Z",
+      "author": "Example reviewer",
+      "body": "This is a local example discussion, not an authenticated or submitted review. Should the save contract explain recovery retention?",
+      "status": "open",
+      "anchor": {
+        "blockId": "contract",
+        "quote": "Save replaces only changed text ranges and assigns missing block IDs.",
+        "documentVersion": "f53dc7636cd4b00926ec2bd2cb289e8f8a05362867c5235ba7008e0c8bcc853e"
+      },
+      "replies": []
+    }
+  ]
+}

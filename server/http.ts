@@ -78,6 +78,10 @@ export async function startCompanion(port = 0) {
         'The workspace was switched in another tab. Reopen your intended workspace before continuing.');
       if (url.pathname === '/api/document' && request.method === 'GET') {
         json(response, 200, await workspace.load(url.searchParams.get('path') ?? ''));
+      } else if (url.pathname === '/api/reviews' && request.method === 'GET') {
+        json(response, 200, await workspace.loadReviews(url.searchParams.get('path') ?? ''));
+      } else if (url.pathname === '/api/reviews' && request.method === 'POST') {
+        json(response, 200, await workspace.review(await body(request)));
       } else if (url.pathname === '/api/save' && request.method === 'POST') {
         const input = await body(request);
         requireValue(typeof input.path === 'string' && typeof input.version === 'string' && Array.isArray(input.edits),
