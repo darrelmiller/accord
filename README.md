@@ -104,6 +104,18 @@ retry after checking it. Text and review drafts share the unsaved-navigation
 guard. Drafts are tab-local until explicitly saved and do not survive a crash.
 The display name is remembered only in that tab's session storage.
 
+Sidecars are limited to 2 MiB, 500 threads, 200 replies per thread, and 2,000
+total messages. Bodies are limited to 10,000 characters; the UI limits display
+names to 120 and selected quotes to 10,000 characters (the storage schema permits
+200 and 100,000 respectively). Unknown JSON fields and unsupported schema
+versions are rejected, not silently removed.
+
+Review writes use flushed staging files, fingerprint rechecks, and atomic
+rename, but **do not create review backups or history**. The HTML recovery
+copies described below do not back up sidecars. Interrupted locks require
+inspection; abandoned review staging files are not automatically recovered.
+Use your own backup/version-control workflow to retain earlier discussions.
+
 Review sidecars contain private discussion in cleartext and become visible to
 anyone with filesystem/repository access, including Git history if committed.
 They are not a security boundary. Do not publish a repository directory as a
