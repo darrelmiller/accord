@@ -11,7 +11,26 @@ editable dogfooding document. They retain the original requirements and the
 requirements/implementation distinction, with explicit **Open issues OI-01 to
 OI-11**. `PRD.md` is only a pointer, not a divergent specification.
 
-## Run
+## Read online
+
+GitHub Pages serves the [product requirements](https://darrelmiller.github.io/accord/docs/PRD.html)
+and [sample handbook](https://darrelmiller.github.io/accord/examples/handbook.html).
+This is static repository documentation, **not a hosted Accord companion** or
+the product's review/publication workflow.
+
+The Pages workflow deploys on documentation changes to the current default
+branch, `darrelmiller-accord-local-authoring`, or manual dispatch. If the default
+branch changes, update `.github/workflows/pages.yml` accordingly. Repository
+Settings → Pages must use **GitHub Actions** as the source.
+
+`npm run build:pages` creates `dist/pages` using an explicit document/asset
+allowlist. Review sidecars, source code, unsupported fixtures, and app APIs are
+not deployed; embedded `application/json` records are removed from published
+documents. `npm run test:pages` verifies the publication boundary and relative
+links. Public Git repository history still contains the original committed
+example metadata; Pages redaction does not erase repository history.
+
+## Run locally
 
 Requires **Node.js 24+**, npm, Git, and a modern desktop browser.
 Development and browser regression tests have been exercised on Windows with
